@@ -8,13 +8,11 @@ from fastapi.requests import Request
 from pydantic import BaseModel
 from recommend import *
 from sklearn.metrics.pairwise import cosine_similarity
-import math
-import time
 
 
 app=FastAPI()
 
-origins=["http://localhost:8091/prj/recTour",
+origins=["http://localhost:8091/tour/recTour",
          "http://localhost:8091",
          ]
 
@@ -31,62 +29,80 @@ app.add_middleware(
 def home():
     return{"message":"home"} 
 
-
 @app.post("/recommend")
 async def recommendSpot(request: Request):
-    start=time.time()
-    data_list  = await request.json()
+    data = await request.json()
+    
+    # JSON 문자열을 파이썬 객체로 변환
+    data = jsonable_encoder(data)
+    
+    selected_area = data.get("selectedArea")
+    select_places = data.get("selectPlaces")
+
+    content_title = []
     content_ids = []
     overviews_list = []
-    for data in data_list:
-        contentid = data.get("contentid")
-        overview = data.get("overview")
+    
+    for data_real in select_places:
+        title=data_real.get("title")
+        contentid = data_real.get("contentid")
+        overview = data_real.get("overview")
         if overview:
+            content_title.append(title)
             content_ids.append(contentid)
             overviews_list.append(overview)
+
+    print(selected_area)
+    print(content_ids)
+    print(content_title)
+    #print(overviews_list)
+    
     #장소에 대한 데이터와 명사로만 분리한 데이터
-    spotList = load_data()
+    spotList = load_spot_data(selected_area)
     spot=spotList['DATA']
     
-    foodList=load_food_data()
+    foodList= load_food_data(selected_area)
     restaurant=foodList['DATA']
     
     #모델 로드
-    model = load_model()
+    model = Word2Vec.load('models/recw2v.model')
     
     #클라이언트가 선택한 장소 데이터 가공
-    selectSpot = select_spot(overviews_list)
+    selectSpot = select_spot(overviews_list,content_title)
     
-    #장소데이터의 d2v
-    spotVec = get_document_vectors(spot,model)
-    #식당데이터벡터
-    restaurantVec = get_document_vectors(restaurant,model)
-    #선택데이터벡터
-    myVec = get_document_vectors(selectSpot,model)
-    
-    #관광지와 식당의 코사인유사도 계산
-    spot_consin_sim = cosine_similarity(spotVec,myVec)
-    restaurant_consin_sim = cosine_similarity(restaurantVec,myVec)
+    # 벡터 계산
+    spotVec = get_document_vectors(spot, model)
+    restaurantVec = get_document_vectors(restaurant, model)
+    myVec = get_document_vectors(selectSpot, model)
+
+    # numpy 배열로 변환
+    spotVec_2d = np.array(spotVec)
+    restaurantVec_2d = np.array(restaurantVec)
+    myVec_2d = np.array(myVec)
+
+    #관광지와 식당의 코사인 유사도 계산
+    spot_consine_sim = cosine_similarity(spotVec_2d, myVec_2d)
+    restaurant_consine_sim = cosine_similarity(restaurantVec_2d, myVec_2d)
+
     
     #추천 결과 추출
-    spot_recommend_list=recommend_result(spotList,spot_consin_sim)
-    restaurant__recommend_list=recommend_result(foodList,restaurant_consin_sim)
+    spot_recommend_list=recommend_result(spotList,spot_consine_sim)
+    restaurant__recommend_list=recommend_result(foodList,restaurant_consine_sim)
     
     spot_recommend_title = spot_recommend_list[0]
     spot_response_message =[{"index":index,"contentid": int(id)} for index, id in spot_recommend_title.items()]
     spot_recommed_per=spot_recommend_list[1]
     
     restaurant_recommend_title = restaurant__recommend_list[0]
-    restaurant_response_message =[{"index":index+5,"contentid": int(id)} for index, id in restaurant_recommend_title.items()]
+    restaurant_response_message =[{"index":index+6,"contentid": int(id)} for index, id in restaurant_recommend_title.items()]
     restaurant_recommed_per=restaurant__recommend_list[1]
     print(spot_recommed_per)
     print(spot_response_message)
-    print("--------------------")
+    print("-----------------------------------------------")
     print(restaurant_recommed_per)
     print(restaurant_response_message)
     
     response_message = spot_response_message+restaurant_response_message
-    end=time.time()
-    print(end-start)
     return response_message
 
+    

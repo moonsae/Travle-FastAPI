@@ -8,30 +8,48 @@ from stopword import *
 okt=Okt()
 
 # 이 함수는 사용자가 입력한 장소의 데이터를 가공해야 하는 것 
-def select_spot(likeList):
+def select_spot(likeList,content_title):
     #print(likeList)
+    
     stop_words = seoul_stop_words()
     select_spot_word=[]
-    row_nouns = [] 
+ 
     for i in range(len(likeList)):
+        nouns=[]
         for word in okt.nouns(likeList[i]):
             if word not in stop_words:
-                row_nouns.append(word)
-    select_spot_word.append(row_nouns)
+                nouns.append(word)
+        if not nouns:
+            nouns.append(content_title[i])
+    select_spot_word.append(nouns)
     return select_spot_word
-# 모델과 csv 파일을 read 해야 함
-def load_data():
-    spotList=pd.read_csv('data\seoul_place.csv')
-    return spotList
 
-def load_food_data():
-    foodList=pd.read_csv('data\seoul_food.csv')
-    return foodList
+#장소 코드를 통해서 데이터의 범위를 줄여야 한다. 
 
-def load_model():
-    model_filename='seoulw2v.model'
-    model = Word2Vec.load('C:/Users/user/Desktop/데이터파일/서울특별시/'+model_filename)
-    return model
+def load_spot_data(AreaCode):
+    areaCode = int(AreaCode)
+    allSpotList=pd.read_csv('data/rec_attraction.csv')
+    if areaCode<40:
+        spot_data=allSpotList[allSpotList['SIDOCODE']==areaCode]
+        spot_data = spot_data.reset_index(drop=True)
+        return spot_data
+    else:
+        spot_data=allSpotList[allSpotList['SIGUNGUCODE']==areaCode]
+        spot_data = spot_data.reset_index(drop=True)
+        return spot_data
+    
+def load_food_data(AreaCode):
+    areaCode = int(AreaCode)
+    allFoodList=pd.read_csv('data/rec_restaurant.csv')
+    if areaCode<40:
+        food_data=allFoodList[allFoodList['SIDOCODE']==areaCode]
+        food_data = food_data.reset_index(drop=True)
+        return food_data
+    else:
+        food_data=allFoodList[allFoodList['SIGUNGUCODE']==areaCode]
+        food_data = food_data.reset_index(drop=True)
+        return food_data
+
 def get_document_vectors(document_list,word2vec_model):
     document_embedding_list = []
     # 각 문서에 대해서
@@ -61,11 +79,11 @@ def recommend_result(dataList,cosine_sim):
     
     sim_scores = list(enumerate(cosine_sim))
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-    sim_scores = sim_scores[1:6]
+    sim_scores = sim_scores[1:7]
 
     spot_indices = [i[0] for i in sim_scores]
 
-    # 전체 데이터프레임에서 해당 인덱스의 행만 추출. 5개의 행을 가진다.
+    # 전체 데이터프레임에서 해당 인덱스의 행만 추출. 10개의 행을 가진다.
     recommend = dataList.iloc[spot_indices].reset_index(drop=True)
     recommendTitle = recommend['CONTENTID']
     
