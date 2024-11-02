@@ -10,10 +10,11 @@ from recommend import *
 from sklearn.metrics.pairwise import cosine_similarity
 
 
+
 app=FastAPI()
 
-origins=["http://localhost:8091/tour/recTour",
-         "http://localhost:8091",
+origins=["http://129.154.56.13:8091/tour/recTour",
+         "http://129.154.56.13:8091",
          ]
 
 app.add_middleware(
@@ -29,7 +30,7 @@ app.add_middleware(
 def home():
     return{"message":"home"} 
 
-@app.post("/recommend")
+@app.post("/api/recommend")
 async def recommendSpot(request: Request):
     data = await request.json()
     
