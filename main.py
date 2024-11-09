@@ -13,8 +13,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 app=FastAPI()
 
-origins=["http://129.154.56.13:8091/tour/recTour",
-         "http://129.154.56.13:8091",
+origins=["http://144.24.74.53:8091/tour/recTour",
+         "http://144.24.74.53:8091",
          ]
 
 app.add_middleware(
